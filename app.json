@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "TomorrowMe",
+    "slug": "my-app",
+    "version": "1.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "orientation": "portrait",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ccda8e89-4c23-45b8-89e0-ac0293e0ffa4"
+      }
+    },
+    "owner": "nktssfrn",
+    "android": {
+      "package": "TomorrowMe",
+      "newArchEnabled": true
+    }
+  },
+  "splash": {
+    "image": "./assets/images/icon.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#ffffff"
+  }
+}
