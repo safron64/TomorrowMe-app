@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { Alert } from 'react-native'
 import styled from 'styled-components/native'
-import { API_BASE_URL } from '@env'
+import { UserContext } from '../context/UserContext'
 
 const EmailVerificationScreen = ({ route, navigation }) => {
 	const [code, setCode] = useState('')
 	const { user_id } = route.params
+	const { saveUser } = useContext(UserContext) // Получаем saveUser из контекста
 
 	const handleVerify = async () => {
 		if (!code.trim()) {
@@ -14,13 +15,16 @@ const EmailVerificationScreen = ({ route, navigation }) => {
 		}
 
 		try {
-			const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ user_id, verification_code: code }),
-			})
+			const response = await fetch(
+				'http://localhost:5000/api/auth/verify',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({ user_id, verification_code: code }),
+				}
+			)
 
 			const responseData = await response.json()
 
@@ -34,7 +38,9 @@ const EmailVerificationScreen = ({ route, navigation }) => {
 				'Успешно',
 				'Ваш аккаунт подтвержден. Пожалуйста, войдите в систему.'
 			)
-			navigation.replace('Login')
+
+			const newUser = { user_id }
+			saveUser(newUser)
 		} catch (error) {
 			Alert.alert('Ошибка', error.message)
 		}

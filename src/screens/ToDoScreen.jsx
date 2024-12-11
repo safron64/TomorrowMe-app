@@ -89,7 +89,7 @@ const TodoScreen = () => {
 				updatedTask,
 				{
 					params: {
-						user_id: user_id,
+						user_id,
 					},
 				}
 			)

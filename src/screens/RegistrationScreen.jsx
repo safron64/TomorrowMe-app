@@ -1,11 +1,14 @@
-// RegistrationScreen.js
-import React, { useState } from 'react'
+import React, { useState, useContext } from 'react'
 import { Alert, ScrollView } from 'react-native'
 import styled from 'styled-components/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API_BASE_URL } from '@env'
+import { useNavigation } from '@react-navigation/native'
+import { UserContext } from '../context/UserContext' // Импортируем контекст
 
-const RegistrationScreen = ({ setUser }) => {
+const RegistrationScreen = () => {
+	const navigation = useNavigation()
+
 	const [formData, setFormData] = useState({
 		email: null,
 		password: null,
@@ -33,7 +36,6 @@ const RegistrationScreen = ({ setUser }) => {
 			return
 		}
 
-		// // Отправка данных на сервер
 		try {
 			const response = await fetch(`${API_BASE_URL}/auth/register`, {
 				method: 'POST',
@@ -50,12 +52,12 @@ const RegistrationScreen = ({ setUser }) => {
 					responseData.message || 'Ошибка при регистрации'
 				)
 			} else {
+				// responseData: { message, user_id }
 				await AsyncStorage.setItem(
-					'user',
-					JSON.stringify(responseData.user)
+					'user_id',
+					responseData.user_id.toString()
 				)
-
-				setUser(responseData.user)
+				// Переход на экран верификации
 				navigation.navigate('EmailVerification', {
 					user_id: responseData.user_id,
 				})
@@ -79,7 +81,7 @@ const RegistrationScreen = ({ setUser }) => {
 					placeholder="Пароль *"
 					value={formData.password}
 					onChangeText={text => handleChange('password', text)}
-					secureTextEntry={true} // This hides the password input
+					secureTextEntry={true}
 				/>
 				<Input
 					placeholder="Имя"
@@ -157,6 +159,7 @@ const RegistrationScreen = ({ setUser }) => {
 
 export default RegistrationScreen
 
+// Стили
 const SwitchContainer = styled.View`
 	flex-direction: row;
 	justify-content: center;
@@ -178,7 +181,6 @@ const SwitchButtonText = styled.Text`
 	font-weight: bold;
 `
 
-// Стили
 const Container = styled.View`
 	flex: 1;
 	background-color: #000;

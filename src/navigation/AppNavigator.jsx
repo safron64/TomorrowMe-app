@@ -20,6 +20,7 @@ import ChatScreen from '../screens/ChatScreen'
 import ProfileNavigator from './ProfileNavigator' // Импорт ProfileNavigator
 import { UserContext } from '../context/UserContext'
 import EmailVerificationScreen from '../screens/EmailVerificationScreen'
+import CalendarScreen from '../screens/CalendarScreen'
 
 const Stack = createStackNavigator()
 const Tab = createBottomTabNavigator()
@@ -43,6 +44,8 @@ function MainTabs() {
 						iconName = 'chatbubble'
 					} else if (route.name === 'Profile') {
 						iconName = 'person'
+					} else if (route.name === 'Calendar') {
+						iconName = 'calendar-outline'
 					}
 
 					return (
@@ -53,6 +56,7 @@ function MainTabs() {
 		>
 			<Tab.Screen name="Home" component={HomeScreen} />
 			<Tab.Screen name="ToDo" component={ToDoScreen} />
+			<Tab.Screen name="Calendar" component={CalendarScreen} />
 			<Tab.Screen name="Chat" component={ChatScreen} />
 			<Tab.Screen name="Profile" component={ProfileNavigator} />
 		</Tab.Navigator>
