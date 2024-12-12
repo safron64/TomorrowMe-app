@@ -50,12 +50,6 @@ const LoginScreen = ({ navigation }) => {
 				responseData.user
 			)
 			Alert.alert('Успешно', 'Вы успешно вошли в систему.')
-
-			// Сбрасываем навигацию и переходим на главный экран
-			navigation.reset({
-				index: 0,
-				routes: [{ name: 'MainTabs' }],
-			})
 		} catch (error) {
 			Alert.alert('Ошибка', error.message)
 			console.log(error)

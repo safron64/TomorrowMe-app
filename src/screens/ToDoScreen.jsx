@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react'
+import React, { useEffect, useState, useContext, useCallback } from 'react'
 import {
 	FlatList,
 	TouchableOpacity,
@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons'
 import axios from 'axios'
 import { API_BASE_URL } from '@env'
 import { UserContext } from '../context/UserContext'
+import { useFocusEffect } from '@react-navigation/native'
 
 const TodoScreen = () => {
 	const [tasks, setTasks] = useState([])
@@ -24,11 +25,11 @@ const TodoScreen = () => {
 	const { user } = useContext(UserContext)
 	const user_id = user ? user.user_id : null
 
-	useEffect(() => {
-		if (user_id) {
+	useFocusEffect(
+		useCallback(() => {
 			fetchTasks()
-		}
-	}, [user_id])
+		}, [user_id])
+	)
 
 	const fetchTasks = async () => {
 		try {

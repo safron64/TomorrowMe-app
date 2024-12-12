@@ -21,6 +21,7 @@ const ChatScreen = () => {
 	useEffect(() => {
 		loadChatHistory()
 	}, [])
+	
 
 	const loadChatHistory = async () => {
 		try {

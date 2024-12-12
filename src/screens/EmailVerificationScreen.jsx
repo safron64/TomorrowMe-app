@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react'
 import { Alert } from 'react-native'
 import styled from 'styled-components/native'
 import { UserContext } from '../context/UserContext'
+import { API_BASE_URL } from '@env'
 
 const EmailVerificationScreen = ({ route, navigation }) => {
 	const [code, setCode] = useState('')
@@ -15,16 +16,13 @@ const EmailVerificationScreen = ({ route, navigation }) => {
 		}
 
 		try {
-			const response = await fetch(
-				'http://localhost:5000/api/auth/verify',
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({ user_id, verification_code: code }),
-				}
-			)
+			const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ user_id, verification_code: code }),
+			})
 
 			const responseData = await response.json()
 

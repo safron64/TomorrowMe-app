@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react'
+import React, { useState, useEffect, useContext, useCallback } from 'react'
 import {
 	View,
 	Text,
@@ -20,17 +20,20 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker'
 import axios from 'axios'
 import { API_BASE_URL } from '@env'
 import { UserContext } from '../context/UserContext'
+import { useFocusEffect } from '@react-navigation/native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 if (Platform.OS === 'android') {
 	UIManager.setLayoutAnimationEnabledExperimental &&
 		UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
+const STORAGE_KEY = 'calendarItems' // ключ для AsyncStorage
+
 const CalendarScreen = () => {
 	const { user } = useContext(UserContext)
 	const user_id = user ? user.user_id : null
 
-	// Для теста выбираем конкретный день, на котором есть событие
 	const [selectedDay, setSelectedDay] = useState(null)
 	const [items, setItems] = useState({})
 	const [markedDates, setMarkedDates] = useState({})
@@ -46,23 +49,61 @@ const CalendarScreen = () => {
 	const [timePickerVisible, setTimePickerVisible] = useState(false)
 	const [pickingStartTime, setPickingStartTime] = useState(true)
 
-	useEffect(() => {
-		if (user_id) {
-			loadAllSchedules()
-		}
-	}, [user_id])
+	// Загрузка данных из AsyncStorage при фокусе экрана
+	useFocusEffect(
+		useCallback(() => {
+			let isActive = true
 
-	useEffect(() => {
-		updateMarkedDates()
-	}, [items, selectedDay])
+			const loadFromAsyncStorage = async () => {
+				try {
+					const storedData = await AsyncStorage.getItem(STORAGE_KEY)
+					if (storedData) {
+						const parsedData = JSON.parse(storedData)
+						if (isActive) {
+							setItems(parsedData)
+							// Сразу отметим дату (можно выбрать текущую дату)
+							const today = new Date()
+							const y = today.getFullYear()
+							const m = (today.getMonth() + 1)
+								.toString()
+								.padStart(2, '0')
+							const d = today
+								.getDate()
+								.toString()
+								.padStart(2, '0')
+							const dateStr = `${y}-${m}-${d}`
+							setSelectedDay(dateStr)
+							updateMarkedDates(parsedData, dateStr)
+							// Не показываем лоадер, пользователь уже видит старые данные
+							setLoading(false)
+						}
+					} else {
+						// Если нет данных в AsyncStorage - можно либо оставить пусто, либо поставить loading
+						setLoading(false)
+					}
+				} catch (error) {
+					console.error('Error loading from AsyncStorage:', error)
+					setLoading(false)
+				}
+				// После загрузки локальных данных — обновим с сервера
+				if (user_id) {
+					await loadAllSchedulesFromServer()
+				}
+			}
 
-	const loadAllSchedules = async () => {
-		if (!user_id) {
-			setLoading(false)
-			return
-		}
+			loadFromAsyncStorage()
+
+			return () => {
+				isActive = false
+			}
+		}, [user_id])
+	)
+
+	const loadAllSchedulesFromServer = async () => {
+		if (!user_id) return
 		try {
-			setLoading(true)
+			// Не показываем loading, так как пользователь уже видит данные из AsyncStorage
+			// Если хотите показать, можно задать setLoading(true) перед запросом
 			const response = await axios.get(`${API_BASE_URL}/schedules`, {
 				params: { user_id },
 			})
@@ -105,20 +146,24 @@ const CalendarScreen = () => {
 			const m = (today.getMonth() + 1).toString().padStart(2, '0')
 			const d = today.getDate().toString().padStart(2, '0')
 			const dateStr = `${y}-${m}-${d}`
-			setSelectedDay(dateStr)
-			setLoading(false)
+			if (!selectedDay) {
+				setSelectedDay(dateStr)
+			}
+			updateMarkedDates(newItems, selectedDay || dateStr)
+
+			// Сохраняем обновлённые данные в AsyncStorage
+			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newItems))
 		} catch (error) {
 			console.error('Error loading schedules:', error)
-			Alert.alert('Ошибка', 'Не удалось загрузить расписания.')
-			setLoading(false)
+			Alert.alert('Ошибка', 'Не удалось загрузить расписания с сервера.')
 		}
 	}
 
-	const updateMarkedDates = () => {
+	const updateMarkedDates = (data = items, day = selectedDay) => {
 		const newMarked = {}
-		for (const day in items) {
-			if (items[day] && items[day].length > 0) {
-				newMarked[day] = {
+		for (const dayKey in data) {
+			if (data[dayKey] && data[dayKey].length > 0) {
+				newMarked[dayKey] = {
 					marked: true,
 					dots: [
 						{
@@ -127,13 +172,13 @@ const CalendarScreen = () => {
 							selectedDotColor: '#0a84ff',
 						},
 					],
-					...(day === selectedDay
+					...(dayKey === day
 						? { selected: true, selectedColor: '#0a84ff' }
 						: {}),
 				}
 			} else {
-				if (day === selectedDay) {
-					newMarked[day] = {
+				if (dayKey === day) {
+					newMarked[dayKey] = {
 						selected: true,
 						selectedColor: '#0a84ff',
 					}
@@ -141,8 +186,8 @@ const CalendarScreen = () => {
 			}
 		}
 
-		if (selectedDay && !newMarked[selectedDay]) {
-			newMarked[selectedDay] = {
+		if (day && !newMarked[day]) {
+			newMarked[day] = {
 				selected: true,
 				selectedColor: '#0a84ff',
 			}
@@ -226,7 +271,10 @@ const CalendarScreen = () => {
 					}
 				)
 			}
-			await loadAllSchedules()
+
+			// Обновляем с сервера снова (или можно обновить локально items)
+			await loadAllSchedulesFromServer()
+
 			setModalVisible(false)
 		} catch (error) {
 			console.error('Error saving event:', error)
@@ -235,7 +283,6 @@ const CalendarScreen = () => {
 	}
 
 	const deleteEvent = async eventId => {
-		console.log(eventId)
 		if (!user_id) {
 			Alert.alert('Ошибка', 'user_id не найден.')
 			return
@@ -259,7 +306,8 @@ const CalendarScreen = () => {
 									params: { user_id },
 								}
 							)
-							await loadAllSchedules()
+							// Снова загрузим с сервера
+							await loadAllSchedulesFromServer()
 						} catch (error) {
 							console.error('Error deleting event:', error)
 							Alert.alert('Ошибка', 'Не удалось удалить событие.')
@@ -286,23 +334,6 @@ const CalendarScreen = () => {
 		selectedDay && items[selectedDay] ? [...items[selectedDay]] : []
 	dayEvents.sort((a, b) => a.startTime.localeCompare(b.startTime))
 
-	const renderEventItem = ({ item }) => (
-		<EventItem>
-			<EventText>
-				{item.name} - {item.startTime}
-				{item.endTime !== item.startTime ? ` - ${item.endTime}` : ''}
-			</EventText>
-			<ButtonsRow>
-				<EditButton onPress={() => openEditEventModal(item)}>
-					<Ionicons name="pencil" size={20} color="#0a84ff" />
-				</EditButton>
-				<DeleteButton onPress={() => deleteEvent(item.id)}>
-					<Ionicons name="trash" size={20} color="#ff3b30" />
-				</DeleteButton>
-			</ButtonsRow>
-		</EventItem>
-	)
-
 	return (
 		<SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
 			<Header>
@@ -321,6 +352,8 @@ const CalendarScreen = () => {
 					<Calendar
 						onDayPress={day => {
 							setSelectedDay(day.dateString)
+							// При смене дня обновим отметки
+							updateMarkedDates(items, day.dateString)
 						}}
 						markedDates={markedDates}
 						theme={{
@@ -344,7 +377,38 @@ const CalendarScreen = () => {
 							ListEmptyComponent={() => (
 								<EmptyText>Событий нет</EmptyText>
 							)}
-							renderItem={renderEventItem}
+							renderItem={({ item }) => (
+								<EventItem>
+									<EventText>
+										{item.name} - {item.startTime}
+										{item.endTime !== item.startTime
+											? ` - ${item.endTime}`
+											: ''}
+									</EventText>
+									<ButtonsRow>
+										<EditButton
+											onPress={() =>
+												openEditEventModal(item)
+											}
+										>
+											<Ionicons
+												name="pencil"
+												size={20}
+												color="#0a84ff"
+											/>
+										</EditButton>
+										<DeleteButton
+											onPress={() => deleteEvent(item.id)}
+										>
+											<Ionicons
+												name="trash"
+												size={20}
+												color="#ff3b30"
+											/>
+										</DeleteButton>
+									</ButtonsRow>
+								</EventItem>
+							)}
 						/>
 					</EventsContainer>
 				</>

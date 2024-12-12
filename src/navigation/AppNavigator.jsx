@@ -17,10 +17,11 @@ import LoginScreen from '../screens/LoginScreen'
 import HomeScreen from '../screens/HomeScreen'
 import ToDoScreen from '../screens/ToDoScreen'
 import ChatScreen from '../screens/ChatScreen'
-import ProfileNavigator from './ProfileNavigator' // Импорт ProfileNavigator
+import ProfileNavigator from './ProfileNavigator'
 import { UserContext } from '../context/UserContext'
 import EmailVerificationScreen from '../screens/EmailVerificationScreen'
 import CalendarScreen from '../screens/CalendarScreen'
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen'
 
 const Stack = createStackNavigator()
 const Tab = createBottomTabNavigator()
@@ -81,10 +82,15 @@ export default function AppNavigator() {
 		>
 			<Stack.Navigator screenOptions={{ headerShown: false }}>
 				{user ? (
-					// Если пользователь авторизован, начинаем с MainTabs
-					<Stack.Screen name="MainTabs" component={MainTabs} />
+					<>
+						<Stack.Screen name="MainTabs" component={MainTabs} />
+						<Stack.Screen
+							name="NotificationSettings"
+							component={NotificationSettingsScreen}
+							options={{ headerShown: true }}
+						/>
+					</>
 				) : (
-					// Если нет, перенаправляем на Login, Registration и EmailVerification
 					<>
 						<Stack.Screen name="Login" component={LoginScreen} />
 						<Stack.Screen
