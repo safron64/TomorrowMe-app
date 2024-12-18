@@ -25,13 +25,18 @@
     },
     "owner": "nktssfrn",
     "android": {
-      "package": "TomorrowMe",
-      "newArchEnabled": true
+      "package": "com.tomorrowme",
+      "newArchEnabled": true,
+      "icon": "./assets/logo.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     }
-  },
-  "splash": {
-    "image": "./assets/images/icon.png",
-    "resizeMode": "contain",
-    "backgroundColor": "#ffffff"
   }
 }

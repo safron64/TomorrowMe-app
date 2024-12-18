@@ -1,12 +1,16 @@
 {
   "cli": {
-    "version": ">= 0.43.0"
+    "version": ">= 0.43.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "production": {
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "API_BASE_URL": "https://tomorrowme-ed751e363316.herokuapp.com/api"
       }
     }
   }

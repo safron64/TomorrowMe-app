@@ -16,12 +16,12 @@ import styled from 'styled-components/native'
 import { Calendar } from 'react-native-calendars'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import DateTimePickerModal from 'react-native-modal-datetime-picker'
 import axios from 'axios'
 import { API_BASE_URL } from '@env'
 import { UserContext } from '../context/UserContext'
 import { useFocusEffect } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { loadNotificationSettings } from '../services/storage'
 
 if (Platform.OS === 'android') {
 	UIManager.setLayoutAnimationEnabledExperimental &&
@@ -46,10 +46,6 @@ const CalendarScreen = () => {
 	const [eventStartTime, setEventStartTime] = useState('')
 	const [eventEndTime, setEventEndTime] = useState('')
 
-	const [timePickerVisible, setTimePickerVisible] = useState(false)
-	const [pickingStartTime, setPickingStartTime] = useState(true)
-
-	// Загрузка данных из AsyncStorage при фокусе экрана
 	useFocusEffect(
 		useCallback(() => {
 			let isActive = true
@@ -61,7 +57,6 @@ const CalendarScreen = () => {
 						const parsedData = JSON.parse(storedData)
 						if (isActive) {
 							setItems(parsedData)
-							// Сразу отметим дату (можно выбрать текущую дату)
 							const today = new Date()
 							const y = today.getFullYear()
 							const m = (today.getMonth() + 1)
@@ -74,11 +69,9 @@ const CalendarScreen = () => {
 							const dateStr = `${y}-${m}-${d}`
 							setSelectedDay(dateStr)
 							updateMarkedDates(parsedData, dateStr)
-							// Не показываем лоадер, пользователь уже видит старые данные
 							setLoading(false)
 						}
 					} else {
-						// Если нет данных в AsyncStorage - можно либо оставить пусто, либо поставить loading
 						setLoading(false)
 					}
 				} catch (error) {
@@ -99,11 +92,19 @@ const CalendarScreen = () => {
 		}, [user_id])
 	)
 
+	async function planEventNotifications(items) {
+		const { eventOffset } = await loadNotificationSettings()
+		// Если у вас нет планировщика уведомлений, можно закомментировать данный цикл
+		for (const dateKey in items) {
+			for (const ev of items[dateKey]) {
+				// Здесь вы могли бы вызвать scheduleEventNotification.
+			}
+		}
+	}
+
 	const loadAllSchedulesFromServer = async () => {
 		if (!user_id) return
 		try {
-			// Не показываем loading, так как пользователь уже видит данные из AsyncStorage
-			// Если хотите показать, можно задать setLoading(true) перед запросом
 			const response = await axios.get(`${API_BASE_URL}/schedules`, {
 				params: { user_id },
 			})
@@ -116,12 +117,10 @@ const CalendarScreen = () => {
 				let endTimeParsed = '00:00'
 				if (time_frame) {
 					if (time_frame.includes('-')) {
-						// Формат HH:MM-HH:MM
 						const parts = time_frame.split('-')
 						startTime = parts[0].substring(0, 5)
 						endTimeParsed = parts[1].substring(0, 5)
 					} else {
-						// Формат HH:MM:SS
 						startTime = time_frame.substring(0, 5)
 						if (end_time) {
 							endTimeParsed = end_time.substring(0, 5)
@@ -151,10 +150,10 @@ const CalendarScreen = () => {
 			}
 			updateMarkedDates(newItems, selectedDay || dateStr)
 
-			// Сохраняем обновлённые данные в AsyncStorage
 			await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newItems))
+			await planEventNotifications(newItems)
 		} catch (error) {
-			console.error('Error loading schedules:', error)
+			console.error('Error loading schedules:', error.response?.data)
 			Alert.alert('Ошибка', 'Не удалось загрузить расписания с сервера.')
 		}
 	}
@@ -247,6 +246,7 @@ const CalendarScreen = () => {
 		try {
 			let response
 			if (editMode && currentEventId) {
+				console.log('put')
 				response = await axios.put(
 					`${API_BASE_URL}/schedules/${currentEventId}`,
 					{
@@ -259,6 +259,7 @@ const CalendarScreen = () => {
 					}
 				)
 			} else {
+				console.log(selectedDay, time_frame)
 				response = await axios.post(
 					`${API_BASE_URL}/schedules`,
 					{
@@ -306,28 +307,18 @@ const CalendarScreen = () => {
 									params: { user_id },
 								}
 							)
-							// Снова загрузим с сервера
 							await loadAllSchedulesFromServer()
 						} catch (error) {
-							console.error('Error deleting event:', error)
+							console.error(
+								'Error deleting event:',
+								error.response?.data
+							)
 							Alert.alert('Ошибка', 'Не удалось удалить событие.')
 						}
 					},
 				},
 			]
 		)
-	}
-
-	const onConfirmTime = date => {
-		const hours = date.getHours().toString().padStart(2, '0')
-		const minutes = date.getMinutes().toString().padStart(2, '0')
-		const timeStr = `${hours}:${minutes}`
-		if (pickingStartTime) {
-			setEventStartTime(timeStr)
-		} else {
-			setEventEndTime(timeStr)
-		}
-		setTimePickerVisible(false)
 	}
 
 	const dayEvents =
@@ -352,7 +343,6 @@ const CalendarScreen = () => {
 					<Calendar
 						onDayPress={day => {
 							setSelectedDay(day.dateString)
-							// При смене дня обновим отметки
 							updateMarkedDates(items, day.dateString)
 						}}
 						markedDates={markedDates}
@@ -442,34 +432,20 @@ const CalendarScreen = () => {
 							placeholder="Название события"
 							placeholderTextColor="#888"
 						/>
-
-						<TimeContainer>
-							<TimeLabel>Начало:</TimeLabel>
-							<TimeButton
-								onPress={() => {
-									setPickingStartTime(true)
-									setTimePickerVisible(true)
-								}}
-							>
-								<TimeText>
-									{eventStartTime || 'Выбрать время начала'}
-								</TimeText>
-							</TimeButton>
-						</TimeContainer>
-
-						<TimeContainer>
-							<TimeLabel>Окончание:</TimeLabel>
-							<TimeButton
-								onPress={() => {
-									setPickingStartTime(false)
-									setTimePickerVisible(true)
-								}}
-							>
-								<TimeText>
-									{eventEndTime || 'Выбрать время окончания'}
-								</TimeText>
-							</TimeButton>
-						</TimeContainer>
+						<ModalInput
+							value={eventStartTime}
+							onChangeText={text => setEventStartTime(text)}
+							placeholder="Время начала (HH:MM)"
+							placeholderTextColor="#888"
+							// keyboardType="numeric"ф
+						/>
+						<ModalInput
+							value={eventEndTime}
+							onChangeText={text => setEventEndTime(text)}
+							placeholder="Время окончания (HH:MM)"
+							placeholderTextColor="#888"
+							// keyboardType="numeric"
+						/>
 
 						<SaveButton onPress={saveEvent}>
 							<SaveButtonText>Сохранить</SaveButtonText>
@@ -477,20 +453,12 @@ const CalendarScreen = () => {
 					</ModalContent>
 				</ModalContainer>
 			</Modal>
-
-			<DateTimePickerModal
-				isVisible={timePickerVisible}
-				mode="time"
-				onConfirm={onConfirmTime}
-				onCancel={() => setTimePickerVisible(false)}
-			/>
 		</SafeAreaView>
 	)
 }
 
 export default CalendarScreen
 
-// Стили
 const Header = styled.View`
 	flex-direction: row;
 	justify-content: space-between;
@@ -534,6 +502,7 @@ const EventItem = styled.View`
 
 const EventText = styled.Text`
 	color: #fff;
+	padding-right: 30px;
 `
 
 const ButtonsRow = styled.View`
@@ -598,30 +567,6 @@ const SaveButtonText = styled.Text`
 	color: #fff;
 	font-weight: bold;
 	font-size: 18px;
-`
-
-const TimeContainer = styled.View`
-	flex-direction: row;
-	align-items: center;
-	margin-bottom: 20px;
-`
-
-const TimeLabel = styled.Text`
-	color: #0a84ff;
-	width: 100px;
-	font-weight: bold;
-`
-
-const TimeButton = styled.TouchableOpacity`
-	background-color: #1c1c1e;
-	padding: 10px;
-	border-radius: 5px;
-	flex: 1;
-	align-items: center;
-`
-
-const TimeText = styled.Text`
-	color: #fff;
 `
 
 const LoaderContainer = styled.View`

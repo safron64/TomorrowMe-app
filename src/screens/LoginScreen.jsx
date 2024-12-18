@@ -19,7 +19,7 @@ const LoginScreen = ({ navigation }) => {
 		}
 
 		try {
-			console.log('ti')
+			console.log(`${API_BASE_URL}/auth/login`)
 			const response = await fetch(`${API_BASE_URL}/auth/login`, {
 				method: 'POST',
 				headers: {

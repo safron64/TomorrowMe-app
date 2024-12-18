@@ -27,10 +27,14 @@ const TodoScreen = () => {
 
 	useFocusEffect(
 		useCallback(() => {
-			fetchTasks()
+			const loadData = async () => {
+				await fetchTasks()
+				const { taskTimes } = await loadNotificationSettings()
+				await scheduleDailyTaskNotifications(taskTimes)
+			}
+			loadData()
 		}, [user_id])
 	)
-
 	const fetchTasks = async () => {
 		try {
 			setLoading(true)

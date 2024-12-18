@@ -2,43 +2,28 @@ import React, { useState, useEffect } from 'react'
 import { Alert, ScrollView } from 'react-native'
 import styled from 'styled-components/native'
 import DateTimePickerModal from 'react-native-modal-datetime-picker'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-
-const TASK_TIMES_KEY = 'taskNotificationTimes'
-const EVENT_OFFSET_KEY = 'eventReminderOffset'
+import {
+	loadNotificationSettings,
+	saveTaskTimes,
+	saveEventOffset,
+	TASK_TIMES_KEY,
+	EVENT_OFFSET_KEY,
+} from '../services/storage'
 
 const NotificationSettingsScreen = () => {
 	const [taskNotificationTimes, setTaskNotificationTimes] = useState([])
+	const [eventReminderOffset, setEventReminderOffset] = useState('5')
 	const [isTimePickerVisible, setTimePickerVisible] = useState(false)
 
-	const [eventReminderOffset, setEventReminderOffset] = useState('5') // по умолчанию 5 минут
-
 	useEffect(() => {
-		// Загружаем данные из AsyncStorage при монтировании
 		const loadSettings = async () => {
-			try {
-				const savedTaskTimes = await AsyncStorage.getItem(
-					TASK_TIMES_KEY
-				)
-				const savedEventOffset = await AsyncStorage.getItem(
-					EVENT_OFFSET_KEY
-				)
-
-				if (savedTaskTimes) {
-					setTaskNotificationTimes(JSON.parse(savedTaskTimes))
-				}
-				if (savedEventOffset) {
-					setEventReminderOffset(savedEventOffset)
-				}
-			} catch (error) {
-				console.error('Ошибка при загрузке настроек:', error)
-			}
+			const { taskTimes, eventOffset } = await loadNotificationSettings()
+			setTaskNotificationTimes(taskTimes)
+			setEventReminderOffset(eventOffset.toString())
 		}
-
 		loadSettings()
 	}, [])
 
-	// Показать пикер времени для выбора времени уведомления для задач
 	const showTimePicker = () => {
 		setTimePickerVisible(true)
 	}
@@ -48,12 +33,10 @@ const NotificationSettingsScreen = () => {
 	}
 
 	const handleConfirmTime = date => {
-		// Получаем часы и минуты из date
 		const hours = date.getHours().toString().padStart(2, '0')
 		const minutes = date.getMinutes().toString().padStart(2, '0')
 		const timeStr = `${hours}:${minutes}`
 
-		// Добавляем время в массив
 		if (!taskNotificationTimes.includes(timeStr)) {
 			setTaskNotificationTimes([...taskNotificationTimes, timeStr])
 		} else {
@@ -67,7 +50,16 @@ const NotificationSettingsScreen = () => {
 		setTaskNotificationTimes(taskNotificationTimes.filter(t => t !== time))
 	}
 
-	const saveEventReminderOffset = async () => {
+	const handleSaveTaskTimes = async () => {
+		try {
+			await saveTaskTimes(taskNotificationTimes)
+			Alert.alert('Успешно', 'Времена уведомлений для задач сохранены.')
+		} catch (error) {
+			Alert.alert('Ошибка', 'Не удалось сохранить времена уведомлений.')
+		}
+	}
+
+	const handleSaveEventOffset = async () => {
 		const offset = parseInt(eventReminderOffset, 10)
 		if (isNaN(offset) || offset < 0) {
 			Alert.alert(
@@ -77,25 +69,10 @@ const NotificationSettingsScreen = () => {
 			return
 		}
 		try {
-			await AsyncStorage.setItem(EVENT_OFFSET_KEY, eventReminderOffset)
+			await saveEventOffset(offset)
 			Alert.alert('Успешно', `Напоминание за ${offset} минут сохранено.`)
 		} catch (error) {
-			console.error('Ошибка при сохранении offset:', error)
 			Alert.alert('Ошибка', 'Не удалось сохранить настройку.')
-		}
-	}
-
-	const saveTaskTimes = async () => {
-		// Сохраняем taskNotificationTimes в AsyncStorage
-		try {
-			await AsyncStorage.setItem(
-				TASK_TIMES_KEY,
-				JSON.stringify(taskNotificationTimes)
-			)
-			Alert.alert('Успешно', 'Времена уведомлений для задач сохранены.')
-		} catch (error) {
-			console.error('Ошибка при сохранении времен задач:', error)
-			Alert.alert('Ошибка', 'Не удалось сохранить времена уведомлений.')
 		}
 	}
 
@@ -130,7 +107,7 @@ const NotificationSettingsScreen = () => {
 						<AddTimeButtonText>Добавить время</AddTimeButtonText>
 					</AddTimeButton>
 
-					<SaveButton onPress={saveTaskTimes}>
+					<SaveButton onPress={handleSaveTaskTimes}>
 						<SaveButtonText>Сохранить</SaveButtonText>
 					</SaveButton>
 				</Section>
@@ -150,7 +127,7 @@ const NotificationSettingsScreen = () => {
 						placeholderTextColor="#888"
 					/>
 
-					<SaveButton onPress={saveEventReminderOffset}>
+					<SaveButton onPress={handleSaveEventOffset}>
 						<SaveButtonText>Сохранить</SaveButtonText>
 					</SaveButton>
 				</Section>

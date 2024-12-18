@@ -15,7 +15,7 @@ import { API_BASE_URL } from '@env'
 import { UserContext } from '../context/UserContext'
 
 const UserInfoScreen = () => {
-	const { user, saveUser  } = useContext(UserContext)
+	const { user, saveUser } = useContext(UserContext)
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState(false)
 
@@ -23,35 +23,49 @@ const UserInfoScreen = () => {
 	const [editData, setEditData] = useState({ ...user })
 
 	useEffect(() => {
-		fetchUserData()
-	}, [])
+		let isActive = true
+		const fetchUserData = async () => {
+			try {
+				setLoading(true)
+				const response = await axios.get(`${API_BASE_URL}/user`, {
+					params: { user_id: user?.user_id },
+				})
+				if (isActive) {
+					saveUser(response.data)
+					setEditData(response.data)
+				}
+			} catch (err) {
+				if (isActive) {
+					console.error(
+						'Ошибка при получении данных пользователя:',
+						err
+					)
+					setError(true)
+				}
+			} finally {
+				if (isActive) {
+					setLoading(false)
+				}
+			}
+		}
 
-	const fetchUserData = async () => {
-		try {
-			setLoading(true)
-			const response = await axios.get(`${API_BASE_URL}/user`, {
-				params: { user_id: user.user_id },
-			})
-			saveUser (response.data)
-			setEditData(response.data)
-			setLoading(false)
-		} catch (err) {
-			console.error('Ошибка при получении данных пользователя:', err)
-			setError(true)
+		if (user?.user_id) {
+			fetchUserData()
+		} else {
 			setLoading(false)
 		}
-	}
+
+		return () => {
+			isActive = false
+		}
+	}, [user?.user_id])
 
 	const handleUpdateUser = async () => {
 		try {
-			const response = await axios.put(
-				`${API_BASE_URL}/user`,
-				editData,
-				{
-					params: { user_id: user.user_id },
-				}
-			)
-			saveUser (response.data)
+			const response = await axios.put(`${API_BASE_URL}/user`, editData, {
+				params: { user_id: user?.user_id },
+			})
+			saveUser(response.data)
 			Alert.alert('Успешно', 'Данные пользователя обновлены.')
 			setModalVisible(false)
 		} catch (err) {
@@ -72,6 +86,14 @@ const UserInfoScreen = () => {
 		return (
 			<Container>
 				<ErrorText>Ошибка при загрузке данных пользователя.</ErrorText>
+			</Container>
+		)
+	}
+
+	if (!user) {
+		return (
+			<Container>
+				<ErrorText>Данные пользователя не доступны.</ErrorText>
 			</Container>
 		)
 	}
@@ -180,7 +202,6 @@ const UserInfoScreen = () => {
 								</TouchableOpacity>
 							</ModalHeader>
 							<ScrollView>
-								{/* Повторите для всех необходимых полей */}
 								<InputContainer>
 									<LabelInput>Имя:</LabelInput>
 									<Input
