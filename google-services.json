@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "354483809810",
+    "project_id": "tomorrowme-f91a9",
+    "storage_bucket": "tomorrowme-f91a9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354483809810:android:2ea9717230069308f672cb",
+        "android_client_info": {
+          "package_name": "com.tomorrowme"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxBgqWrUavd-DLPJ-jLYN_iq3TynWNJGQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

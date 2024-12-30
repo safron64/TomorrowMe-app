@@ -188,7 +188,8 @@ const TodoScreen = () => {
 				/>
 			</TouchableOpacity>
 			<TaskText completed={item.is_completed}>
-				{item.task_description}
+				{/* Здесь выводим task_number */}
+				{item.task_number}. {item.task_description}
 			</TaskText>
 			<TaskActions>
 				<ActionButton onPress={() => editTask(item)}>

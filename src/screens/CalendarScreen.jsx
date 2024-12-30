@@ -22,6 +22,8 @@ import { UserContext } from '../context/UserContext'
 import { useFocusEffect } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { loadNotificationSettings } from '../services/storage'
+import { Dimensions } from 'react-native'
+const SCREEN_WIDTH = Dimensions.get('window').width
 
 if (Platform.OS === 'android') {
 	UIManager.setLayoutAnimationEnabledExperimental &&
@@ -503,6 +505,8 @@ const EventItem = styled.View`
 const EventText = styled.Text`
 	color: #fff;
 	padding-right: 30px;
+	flex-wrap: wrap;
+	max-width: ${SCREEN_WIDTH - 100}px;
 `
 
 const ButtonsRow = styled.View`
