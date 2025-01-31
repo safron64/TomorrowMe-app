@@ -1,5 +1,4 @@
 // components/MessageBubble.jsx
-
 import React from 'react'
 import styled from 'styled-components/native'
 
@@ -29,28 +28,32 @@ const MessageBubble = React.memo(({ message }) => {
 
 export default MessageBubble
 
-// Styled Components
+/* ========== Стили ========== */
+
 const BubbleContainer = styled.View`
+	width: 100%;
 	flex-direction: row;
-	justify-content: ${props => (props.isUser ? 'flex-end' : 'flex-start')};
+	justify-content: ${({ isUser }) => (isUser ? 'flex-end' : 'flex-start')};
 	margin-bottom: 10px;
 `
 
 const Bubble = styled.View`
-	background-color: ${props => (props.isUser ? '#007aff' : '#e5e5ea')};
+	background-color: ${({ isUser }) => (isUser ? '#007aff' : '#e5e5ea')};
 	padding: 10px 15px;
 	border-radius: 20px;
-	max-width: 80%;
+	max-width: 80%; /* ограничиваем ширину пузыря */
+	flex-shrink: 1; /* разрешаем «сжимать» пузырь, если текст большой */
 `
 
 const MessageText = styled.Text`
-	color: ${props => (props.isUser ? '#fff' : '#000')};
+	color: ${({ isUser }) => (isUser ? '#fff' : '#000')};
 	font-size: 16px;
-	margin-bottom: 4px; /* Чтобы текст и время не слипались */
+	margin-bottom: 4px;
+	flex-wrap: wrap; /* перенос строк */
 `
 
 const TimeText = styled.Text`
 	font-size: 12px;
-	color: ${props => (props.isUser ? 'rgba(255,255,255,0.8)' : '#555')};
-	align-self: flex-end; /* Чтобы время «уходило» вправо */
+	color: ${({ isUser }) => (isUser ? 'rgba(255,255,255,0.8)' : '#555')};
+	align-self: flex-end; /* время прижимается к правому краю внутри пузыря */
 `

@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
 
 import { usePushNotifications } from '../hooks/usePushNotifications'
+import styled from 'styled-components/native'
 
 const HomeScreen = () => {
 	const { user, logout } = useContext(UserContext)
@@ -64,8 +65,40 @@ const HomeScreen = () => {
 				title="Отправить тестовое уведомление"
 				onPress={sendTestNotification}
 			/>
+
+			<ButtonsRow>
+				<GoalButton
+					onPress={() => {
+						navigation.navigate('Goals')
+					}}
+				>
+					<Text>Goals</Text>
+				</GoalButton>
+				<GoalButton
+					onPress={() => {
+						navigation.navigate('Habits')
+					}}
+				>
+					<Text>Habits</Text>
+				</GoalButton>
+			</ButtonsRow>
 		</View>
 	)
 }
 
 export default HomeScreen
+
+const ButtonsRow = styled.View`
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+`
+
+const GoalButton = styled.TouchableOpacity`
+	padding: 10px;
+	background-color: cyan;
+	margin-top: 10px;
+	border-radius: 10px;
+	text-align: center;
+	width: 45%;
+`

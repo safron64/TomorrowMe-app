@@ -22,6 +22,8 @@ import { UserContext } from '../context/UserContext'
 import EmailVerificationScreen from '../screens/EmailVerificationScreen'
 import CalendarScreen from '../screens/CalendarScreen'
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen'
+import GoalsScreen from '../screens/GoalsScreen'
+import HabitsScreen from '../screens/HabitsScreen'
 
 const Stack = createStackNavigator()
 const Tab = createBottomTabNavigator()
@@ -87,6 +89,16 @@ export default function AppNavigator() {
 						<Stack.Screen
 							name="NotificationSettings"
 							component={NotificationSettingsScreen}
+							options={{ headerShown: true }}
+						/>
+						<Stack.Screen
+							name="Goals"
+							component={GoalsScreen}
+							options={{ headerShown: true }}
+						/>
+						<Stack.Screen
+							name="Habits"
+							component={HabitsScreen}
 							options={{ headerShown: true }}
 						/>
 					</>

@@ -17,16 +17,18 @@ const ChatScreen = () => {
 	const [messages, setMessages] = useState([])
 	const [inputText, setInputText] = useState('')
 	const [loading, setLoading] = useState(false)
-	const [isAtBottom, setIsAtBottom] = useState(true) // Следим, внизу ли мы
+	const [isAtBottom, setIsAtBottom] = useState(true)
 	const flatListRef = useRef(null)
 	const { user } = useContext(UserContext)
 
 	useEffect(() => {
 		if (user && user.user_id) {
 			loadChatHistory(user.user_id)
+			// Прокрутить вниз сразу
 			flatListRef.current?.scrollToEnd({ animated: true })
 		}
 	}, [user])
+
 	useEffect(() => {
 		if (isAtBottom) {
 			flatListRef.current?.scrollToEnd({ animated: true })
@@ -43,7 +45,9 @@ const ChatScreen = () => {
 				throw new Error('Failed to fetch chat history')
 			}
 			const data = await res.json()
-			await setMessages(data) // Дождитесь установки сообщений
+			// Важно: если сервер не отдаёт timestamp, можно сгенерировать
+			// или парсить, если приходит. В данном примере оставим «как есть».
+			setMessages(data)
 			setTimeout(() => {
 				flatListRef.current?.scrollToEnd({ animated: true })
 			}, 0)
@@ -57,16 +61,22 @@ const ChatScreen = () => {
 	const handleSend = async () => {
 		if (!inputText.trim()) return
 
+		// 1. Создаём локальное сообщение с timestamp, чтобы сразу отобразить время
+		const localTimestamp = new Date().toISOString()
+
 		const newMessage = {
 			id: Date.now().toString(),
 			text: inputText,
 			sender: 'user',
+			timestamp: localTimestamp, // сразу проставляем время
 		}
+
+		// Добавляем в локальный массив
 		const updatedMessages = [...messages, newMessage]
 		setMessages(updatedMessages)
 		setInputText('')
 
-		// Если пользователь был внизу, автоскроллим сразу
+		// Скроллим вниз, если пользователь был внизу
 		if (isAtBottom) {
 			flatListRef.current?.scrollToEnd({ animated: true })
 		}
@@ -87,17 +97,23 @@ const ChatScreen = () => {
 				throw new Error(errorData.error || 'Ошибка при запросе')
 			}
 
+			// 2. Получаем ответ ассистента
 			const data = await response.json()
+
+			// Тоже проставим timestamp (либо получаем от сервера, если он присылает)
+			const serverTimestamp = new Date().toISOString()
 
 			const assistantMessage = {
 				id: (Date.now() + 1).toString(),
-				text: data,
+				text: data, // предполагаем, что сервер вернул строку
 				sender: 'gpt',
+				timestamp: serverTimestamp,
 			}
+
 			const newMessagesArr = [...updatedMessages, assistantMessage]
 			setMessages(newMessagesArr)
 
-			// Аналогично — скроллим вниз только если пользователь внизу
+			// Скроллим вниз
 			if (isAtBottom) {
 				setTimeout(() => {
 					flatListRef.current?.scrollToEnd({ animated: true })
@@ -110,14 +126,11 @@ const ChatScreen = () => {
 		}
 	}
 
-	// Этот коллбэк будет вызываться при скролле
 	const handleScroll = event => {
 		const { contentOffset, contentSize, layoutMeasurement } =
 			event.nativeEvent
 		const distanceFromBottom =
 			contentSize.height - (contentOffset.y + layoutMeasurement.height)
-
-		//<500px
 		setIsAtBottom(distanceFromBottom < 500)
 	}
 
@@ -138,13 +151,12 @@ const ChatScreen = () => {
 				data={messages}
 				keyExtractor={item => item.id}
 				renderItem={({ item }) => <MessageBubble message={item} />}
-				onScroll={handleScroll} // отслеживаем прокрутку
-				scrollEventThrottle={16} // как часто обновлять onScroll (16 или 32 обычно норм)
+				onScroll={handleScroll}
+				scrollEventThrottle={16}
 			/>
 
 			{loading && <ActivityIndicator size="large" color="#0a84ff" />}
 
-			{/* Если пользователь не внизу, покажем кнопку "Вниз". */}
 			{!isAtBottom && (
 				<ScrollToBottomButton
 					onPress={() => {
@@ -163,6 +175,7 @@ const ChatScreen = () => {
 					value={inputText}
 					onChangeText={setInputText}
 					placeholderTextColor="#888"
+					multiline // Чтобы при длинном вводе текст переносился
 				/>
 				<SendButton onPress={handleSend}>
 					<SendButtonText>Отправить</SendButtonText>
@@ -174,7 +187,6 @@ const ChatScreen = () => {
 
 export default ChatScreen
 
-// Стили
 const Container = styled(KeyboardAvoidingView)`
 	flex: 1;
 	background-color: #100f0f;
@@ -189,7 +201,7 @@ const InputContainer = styled.View`
 	flex-direction: row;
 	padding: 10px;
 	background-color: #0f0e0e;
-	align-items: center;
+	align-items: flex-end;
 `
 
 const Input = styled.TextInput`
@@ -199,6 +211,7 @@ const Input = styled.TextInput`
 	padding: 10px 15px;
 	margin-right: 10px;
 	color: #fff;
+	/* multiline = true; можно добавлять maxHeight или что-то похожее */
 `
 
 const SendButton = styled.TouchableOpacity`
