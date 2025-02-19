@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications'
 
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import styled from 'styled-components/native'
+import NotificationForm from '../components/NotificationForm'
 
 const HomeScreen = () => {
 	const { user, logout } = useContext(UserContext)
@@ -82,6 +83,17 @@ const HomeScreen = () => {
 					<Text>Habits</Text>
 				</GoalButton>
 			</ButtonsRow>
+			<ButtonsRow>
+				<GoalButton
+					onPress={() => {
+						navigation.navigate('DailyNotificationSettings')
+					}}
+				>
+					<Text>Daily Notifications Setting</Text>
+				</GoalButton>
+			</ButtonsRow>
+
+			<NotificationForm />
 		</View>
 	)
 }

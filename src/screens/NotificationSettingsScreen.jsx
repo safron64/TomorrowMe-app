@@ -71,7 +71,7 @@ const NotificationSettingsScreen = () => {
 
 	const handleSaveDailyTasks = async () => {
 		try {
-			await saveTaskTimes(user_id, tasksDailyTimes)
+			await saveTimesNotification(user_id, tasksDailyTimes, 'task')
 			Alert.alert(
 				'Успешно',
 				'Времена уведомлений (daily) для задач сохранены.'

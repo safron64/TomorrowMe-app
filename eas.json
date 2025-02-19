@@ -1,17 +1,28 @@
 {
   "cli": {
-    "version": ">= 0.43.0",
+    "version": ">= 15.0.9",
     "appVersionSource": "remote"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
     "production": {
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "env": {
+          "API_BASE_URL": "https://tomorrowme-ed751e363316.herokuapp.com/api"
+        },
+        "credentialsSource": "remote"
       },
-      "env": {
-        "API_BASE_URL": "https://tomorrowme-ed751e363316.herokuapp.com/api"
-      }
+      "autoIncrement": true
     }
+  },
+  "submit": {
+    "production": {}
   }
 }

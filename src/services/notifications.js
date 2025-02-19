@@ -2,13 +2,6 @@ import { Alert } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import { API_BASE_URL } from '@env'
 
-/**
- * Получаем настройки уведомлений с бэкенда.
- * Бэкенд обычно возвращает JSON вида:
- *   { taskTimes: [...], eventOffset: 5 }
- * @param {number} user_id
- * @returns {Promise<{taskTimes: any[], eventOffset: number}>}
- */
 export async function loadNotificationSettings(user_id) {
 	const res = await fetch(
 		`${API_BASE_URL}/notifications/settings?user_id=${user_id}`
@@ -19,16 +12,12 @@ export async function loadNotificationSettings(user_id) {
 	return await res.json()
 }
 
-/**
- * Сохраняет массив времен уведомлений для задач (daily).
- * @param {number} user_id
- * @param {string[]} times  - Массив строк вида ['09:00', '14:30'] или ISO-строк, в зависимости от вашей логики
- */
-export async function saveTaskTimes(user_id, times) {
-	const res = await fetch(`${API_BASE_URL}/notifications/tasks`, {
+export async function saveTimesNotification(user_id, times, item_type) {
+	console.log(user_id, times)
+	const res = await fetch(`${API_BASE_URL}/notifications`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ user_id, times }),
+		body: JSON.stringify({ user_id, times, item_type }),
 	})
 	if (!res.ok) {
 		throw new Error('Failed to save task times')
@@ -36,7 +25,6 @@ export async function saveTaskTimes(user_id, times) {
 }
 
 export async function saveEventOffset(user_id, offset) {
-	// Проверка корректности
 	if (isNaN(offset) || offset < 0) {
 		Alert.alert('Ошибка', 'Введите корректное кол-во минут.')
 		return
@@ -68,10 +56,6 @@ export async function saveEventOffset(user_id, offset) {
 	}
 }
 
-/**
- * Настройка поведения уведомлений на iOS/Android (необязательно),
- * но полезно, чтобы управлять тем, как уведомление отображается.
- */
 Notifications.setNotificationHandler({
 	handleNotification: async () => ({
 		shouldShowAlert: true,
@@ -80,11 +64,6 @@ Notifications.setNotificationHandler({
 	}),
 })
 
-/**
- * Запрос разрешения у пользователя на получение пушей,
- * получение Expo push token, отправка токена на бэкенд.
- * @param {number} user_id
- */
 export async function registerForPushNotificationsAsync(user_id) {
 	// 1. Запрашиваем разрешения
 	const { status: existingStatus } = await Notifications.getPermissionsAsync()
