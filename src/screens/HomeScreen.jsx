@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import styled from 'styled-components/native'
 import NotificationForm from '../components/NotificationForm'
+import withSafeScreen from '../HOC/withSafeScreen';
 
 const HomeScreen = () => {
 	const { user, logout } = useContext(UserContext)
@@ -98,7 +99,7 @@ const HomeScreen = () => {
 	)
 }
 
-export default HomeScreen
+export default withSafeScreen(HomeScreen)
 
 const ButtonsRow = styled.View`
 	display: flex;

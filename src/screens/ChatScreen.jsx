@@ -1,122 +1,156 @@
-import React, { useState, useEffect, useRef, useContext } from 'react'
-import {
-	FlatList,
-	KeyboardAvoidingView,
-	Platform,
-	ActivityIndicator,
-	Text,
-	View,
-} from 'react-native'
+import React, { useState, useEffect, useCallback, useContext } from 'react'
+import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native'
+import { GiftedChat, Bubble } from 'react-native-gifted-chat'
 import styled from 'styled-components/native'
-import MessageBubble from '../components/MessageBubble'
-import { UserContext } from '../context/UserContext'
-import { API_BASE_URL } from '@env'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { API_BASE_URL } from '@env'
+import { UserContext } from '../context/UserContext'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 100000
 
 const ChatScreen = () => {
+	const { user } = useContext(UserContext)
+	// Предположим, user.user_id = 1 — это «мой» пользователь.
+	// Тогда любые сообщения, где user._id = 1, будут справа.
+
 	const [messages, setMessages] = useState([])
-	const [loading, setLoading] = useState(false)
-	const [loadingOlder, setLoadingOlder] = useState(false)
+	const [isLoadingInitial, setIsLoadingInitial] = useState(false)
+	const [isLoadingEarlier, setIsLoadingEarlier] = useState(false)
 	const [hasMore, setHasMore] = useState(true)
 	const [oldestMessageId, setOldestMessageId] = useState(null)
-	const [inputText, setInputText] = useState('')
 
-	// --- Активные повторяющиеся уведомления ---
+	// --- Активные уведомления (пример)
 	const [activeRepeatedNotifications, setActiveRepeatedNotifications] =
 		useState([])
 
-	const flatListRef = useRef(null)
-	const { user } = useContext(UserContext)
-
-	// --- Кнопка "прокрутить вниз" ---
-	const [showScrollDownBtn, setShowScrollDownBtn] = useState(false)
-
+	// -------------------------------------------
+	// ============  ЗАГРУЗКА / СОХРАНЕНИЕ  ======
+	// -------------------------------------------
 	const loadMessagesFromStorage = async () => {
 		try {
-			const stored = await AsyncStorage.getItem(`chat_${user?.user_id}`)
+			const key = `chat_${user?.user_id}`
+			const stored = await AsyncStorage.getItem(key)
 			if (stored) {
 				const parsed = JSON.parse(stored)
-				setMessages(parsed)
 
-				if (parsed.length > 0) {
-					const firstId = parsed[0].id
-					const numericId = parseIdNumber(firstId)
-					setOldestMessageId(numericId)
-					setHasMore(true)
+				// Убедимся, что _id пользователя — число (если нужно).
+				// Если бэк присылает _id как строку ('1'), можно привести к числу.
+				const unified = parsed.map(m => unifyMessage(m))
+
+				setMessages(unified)
+				if (unified.length > 0) {
+					const last = unified[unified.length - 1] // самое старое
+					setOldestMessageId(last._id)
 				} else {
 					setHasMore(false)
 				}
 			}
 		} catch (error) {
-			console.error(
-				'Ошибка при загрузке сообщений из AsyncStorage:',
-				error
-			)
+			console.error('Ошибка при загрузке из AsyncStorage:', error)
 		}
 	}
 
 	const saveMessagesToStorage = async updatedMessages => {
 		try {
-			await AsyncStorage.setItem(
-				`chat_${user?.user_id}`,
-				JSON.stringify(updatedMessages)
-			)
+			const key = `chat_${user?.user_id}`
+			await AsyncStorage.setItem(key, JSON.stringify(updatedMessages))
 		} catch (error) {
-			console.error(
-				'Ошибка при сохранении сообщений в AsyncStorage:',
-				error
-			)
+			console.error('Ошибка при сохранении в AsyncStorage:', error)
 		}
 	}
 
+	// -------------------------------------------
+	// ============   ФУНКЦИЯ ПРИВЕДЕНИЯ _id  =====
+	// -------------------------------------------
+	/**  
+	 * unifyMessage: Приводит message.user._id к number, если это строка,
+	 * чтобы GiftedChat мог сравнивать корректно (1 === 1, а не '1' === 1).
+	 */
+	const unifyMessage = msg => {
+		// Приводим user._id к числу, если это строка
+		let userIdNum = msg.user?._id
+		if (typeof userIdNum === 'string') {
+			userIdNum = parseInt(userIdNum, 10)
+			if (Number.isNaN(userIdNum)) {
+				// Если не удалось распарсить, оставим как есть
+				userIdNum = msg.user._id
+			}
+		}
+
+		// createdAt: GiftedChat ждет Date-объект, а не строку
+		let created = msg.createdAt
+		if (typeof created === 'string') {
+			created = new Date(created)
+		}
+
+		return {
+			...msg,
+			_id: msg._id, // Можно тоже приводить к числу, если нужно
+			createdAt: created,
+			user: {
+				...msg.user,
+				_id: userIdNum,
+			},
+		}
+	}
+
+	// -------------------------------------------
+	// ============   FETCH УВЕДОМЛЕНИЙ   ========
+	// -------------------------------------------
+	const fetchActiveNotifications = async userId => {
+		try {
+			const response = await fetch(
+				`${API_BASE_URL}/notifications/active-repeated-notifications?user_id=${userId}`
+			)
+			if (!response.ok) {
+				throw new Error('Ошибка при получении активных уведомлений')
+			}
+			const data = await response.json()
+			const newNotifs = data.notifications || []
+			setActiveRepeatedNotifications(newNotifs)
+
+			// Если нужно добавить в чат отдельное сообщение с кнопкой «Cancel»
+			if (newNotifs.length > 0) {
+				// Создадим GPT-сообщение
+				const notifsMsg = {
+					_id: Date.now(), // или Date.now().toString()
+					text: 'Активные уведомления:',
+					createdAt: new Date(),
+					user: { _id: 2, name: 'GPT' },
+					custom: {
+						repeatedNotifications: newNotifs,
+					},
+				}
+
+				setMessages(prev => {
+					const newState = GiftedChat.append(prev, [notifsMsg])
+					saveMessagesToStorage(newState)
+					return newState
+				})
+			}
+		} catch (error) {
+			console.error('fetchActiveNotifications error:', error)
+		}
+	}
+
+	// -------------------------------------------
+	// ============   ИНИЦИАЛИЗАЦИЯ   ============
+	// -------------------------------------------
 	useEffect(() => {
 		if (user?.user_id) {
 			loadMessagesFromStorage().then(() => {
 				loadInitialMessages(user.user_id)
 			})
-			// Загружаем активные нотификации
 			fetchActiveNotifications(user.user_id)
 		}
 	}, [user])
 
-	useEffect(() => {
-		if (user?.user_id) {
-			const interval = setInterval(() => {
-				checkForNewMessages()
-			}, 300000)
-			return () => clearInterval(interval)
-		}
-	}, [user, messages])
-
-	const checkForNewMessages = async () => {
-		try {
-			const url = `${API_BASE_URL}/chat/history-paged?userId=${user.user_id}&limit=${PAGE_SIZE}`
-			const res = await fetch(url)
-			if (!res.ok)
-				throw new Error('Ошибка при запросе обновления сообщений')
-
-			const data = await res.json()
-			if (
-				data.length > 0 &&
-				JSON.stringify(data) !== JSON.stringify(messages)
-			) {
-				setMessages(data)
-				saveMessagesToStorage(data)
-				if (data.length > 0) {
-					const firstId = data[0].id
-					setOldestMessageId(parseIdNumber(firstId))
-				}
-			}
-		} catch (error) {
-			console.error('Ошибка при фоновом обновлении сообщений:', error)
-		}
-	}
-
+	// -------------------------------------------
+	// ============   ПАГИНАЦИЯ   ================
+	// -------------------------------------------
 	const loadInitialMessages = async userId => {
 		try {
-			setLoading(true)
+			setIsLoadingInitial(true)
 			const url = `${API_BASE_URL}/chat/history-paged?userId=${userId}&limit=${PAGE_SIZE}`
 			const res = await fetch(url)
 			if (!res.ok) {
@@ -124,36 +158,31 @@ const ChatScreen = () => {
 			}
 			const data = await res.json()
 
-			setMessages(data)
-			saveMessagesToStorage(data)
+			// Приводим все messages к корректному формату (числовой _id, Date и т.п.)
+			const unifiedData = data.map(m => unifyMessage(m))
 
-			if (data.length < PAGE_SIZE) {
+			setMessages(unifiedData)
+			saveMessagesToStorage(unifiedData)
+
+			if (unifiedData.length < PAGE_SIZE) {
 				setHasMore(false)
 			}
-
-			if (data.length > 0) {
-				const firstId = data[0].id
-				setOldestMessageId(parseIdNumber(firstId))
+			if (unifiedData.length > 0) {
+				const oldest = unifiedData[unifiedData.length - 1]
+				setOldestMessageId(oldest._id)
 			}
-
-			// Прокрутка вниз
-			setTimeout(() => {
-				flatListRef.current?.scrollToOffset({
-					offset: 0,
-					animated: false,
-				})
-			}, 0)
 		} catch (error) {
 			console.error('Ошибка при загрузке истории:', error)
 		} finally {
-			setLoading(false)
+			setIsLoadingInitial(false)
 		}
 	}
 
-	const loadOlderMessages = async () => {
-		if (!hasMore || !oldestMessageId || loadingOlder) return
+	const onLoadEarlier = async () => {
+		if (!hasMore || !oldestMessageId || isLoadingEarlier) return
+
 		try {
-			setLoadingOlder(true)
+			setIsLoadingEarlier(true)
 			const url = `${API_BASE_URL}/chat/history-paged?userId=${user.user_id}&limit=${PAGE_SIZE}&beforeId=${oldestMessageId}`
 			const res = await fetch(url)
 			if (!res.ok) {
@@ -164,127 +193,145 @@ const ChatScreen = () => {
 				setHasMore(false)
 				return
 			}
+			const unifiedData = data.map(m => unifyMessage(m))
+
 			setMessages(prev => {
-				const updated = [...prev, ...data]
+				const updated = [...prev, ...unifiedData]
 				saveMessagesToStorage(updated)
 				return updated
 			})
-			const newFirstId = data[0].id
-			setOldestMessageId(parseIdNumber(newFirstId))
 
-			if (data.length < PAGE_SIZE) {
+			const newOldest = unifiedData[unifiedData.length - 1]
+			setOldestMessageId(newOldest._id)
+
+			if (unifiedData.length < PAGE_SIZE) {
 				setHasMore(false)
 			}
 		} catch (error) {
 			console.error('Ошибка при подгрузке старых сообщений:', error)
 		} finally {
-			setLoadingOlder(false)
+			setIsLoadingEarlier(false)
 		}
 	}
 
-	const parseIdNumber = fullId => {
-		const parts = fullId.split('-')
-		return parseInt(parts[1], 10)
-	}
-
-	const handleEndReached = () => {
-		loadOlderMessages()
-	}
-
-	const handleSend = async () => {
-		if (!inputText.trim()) return
-		const localTimestamp = new Date().toISOString()
-		const newUserMsg = {
-			id: `user-${Date.now()}`,
-			text: inputText,
-			sender: 'user',
-			timestamp: localTimestamp,
-		}
-		setMessages(prev => {
-			const updated = [newUserMsg, ...prev]
-			saveMessagesToStorage(updated)
-			return updated
-		})
-		setInputText('')
-
-		setTimeout(() => {
-			flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
-		}, 0)
-
-		try {
-			setLoading(true)
-			const response = await fetch(`${API_BASE_URL}/chat`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					messages: [{ role: 'user', content: inputText }],
-					userId: user.user_id,
-				}),
-			})
-			if (!response.ok) {
-				const errorData = await response.json()
-				throw new Error(errorData.error || 'Ошибка при запросе')
-			}
-			const data = await response.json()
-			const assistantMsg = {
-				id: `ai-${Date.now() + 1}`,
-				text: data,
-				sender: 'gpt',
-				timestamp: new Date().toISOString(),
-			}
-			setMessages(prev => {
-				const updated = [assistantMsg, ...prev]
-				saveMessagesToStorage(updated)
-				return updated
-			})
-			setTimeout(() => {
-				flatListRef.current?.scrollToOffset({
-					offset: 0,
-					animated: true,
-				})
-			}, 0)
-		} catch (error) {
-			console.error('Ошибка при отправке сообщения:', error)
-		} finally {
-			setLoading(false)
-		}
-	}
-
-	/**
-	 *  Отслеживаем прокрутку:
-	 *  - если offsetY > ~200 => показываем кнопку "Вниз"
-	 */
-	const handleScroll = event => {
-		const offsetY = event.nativeEvent.contentOffset.y
-		if (offsetY > 200) {
-			if (!showScrollDownBtn) setShowScrollDownBtn(true)
-		} else {
-			if (showScrollDownBtn) setShowScrollDownBtn(false)
-		}
-	}
-
-	// --- Загрузка всех активных повторяющихся уведомлений ---
-	const fetchActiveNotifications = async userId => {
-		try {
-			// Если метод на бэке принимает user_id через query
-			const response = await fetch(
-				`${API_BASE_URL}/notifications/active-repeated-notifications?user_id=${userId}`
+	// -------------------------------------------
+	// ============   ОТПРАВКА   =================
+	// -------------------------------------------
+	const onSend = useCallback(
+		async (newMessages = []) => {
+			// При отправке: user._id = 1 => будет справа
+			// (или user.user_id, если ваш реальный ID пользователя)
+			setMessages(previousMessages =>
+				GiftedChat.append(previousMessages, newMessages)
 			)
-			if (!response.ok) {
-				throw new Error(
-					'Ошибка при получении активных повторяющихся уведомлений'
+			saveMessagesToStorage([...newMessages, ...messages])
+
+			try {
+				const msgToSend = newMessages[0]
+				const response = await fetch(`${API_BASE_URL}/chat`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: msgToSend.text }],
+						userId: user.user_id,
+					}),
+				})
+				if (!response.ok) {
+					const errorData = await response.json()
+					throw new Error(errorData.error || 'Ошибка при запросе')
+				}
+				const data = await response.json()
+
+				// Ответ GPT
+				const assistantMsg = {
+					_id: Date.now(),
+					text: data,
+					createdAt: new Date(),
+					user: { _id: 2, name: 'GPT' }, // => слева
+				}
+
+				setMessages(previousMessages =>
+					GiftedChat.append(previousMessages, [assistantMsg])
 				)
+				await fetchActiveNotifications(user.user_id)
+
+				saveMessagesToStorage([assistantMsg, ...messages])
+			} catch (error) {
+				console.error('Ошибка при отправке сообщения:', error)
 			}
-			const data = await response.json()
-			// Ожидаем, что в data: { success: true, notifications: [...] }
-			setActiveRepeatedNotifications(data.notifications || [])
-		} catch (error) {
-			console.error(error)
+		},
+		[messages, user]
+	)
+
+	// -------------------------------------------
+	// ============  КАСТОМНЫЙ BUBBLE   ==========
+	// -------------------------------------------
+	// Позволяет задать цвета для "правых" (моих) и "левых" (GPT) сообщений.
+	// А также отрисовать кнопки "Cancel" для уведомлений.
+	const renderBubble = props => {
+		const { currentMessage } = props
+
+		if (currentMessage.custom?.repeatedNotifications) {
+			// Если в сообщении есть уведомления, рисуем кнопку
+			return (
+				<View style={{ marginBottom: 10 }}>
+					<Bubble
+						{...props}
+						wrapperStyle={{
+							right: { backgroundColor: '#007aff' },
+							left: { backgroundColor: '#333' },
+						}}
+						textStyle={{
+							right: { color: '#fff' },
+							left: { color: '#fff' },
+						}}
+					/>
+					{currentMessage.custom.repeatedNotifications.map(notif => (
+						<TouchableOpacity
+							key={notif.id}
+							onPress={() =>
+								handleStopRepeating(
+									notif.id,
+									currentMessage._id
+								)
+							}
+							style={{
+								backgroundColor: '#b22222',
+								paddingHorizontal: 10,
+								paddingVertical: 5,
+								marginTop: 5,
+								borderRadius: 5,
+							}}
+						>
+							<Text style={{ color: '#fff' }}>
+								Cancel #{notif.id}
+							</Text>
+						</TouchableOpacity>
+					))}
+				</View>
+			)
 		}
+
+		// Обычный Bubble, без кнопок
+		return (
+			<Bubble
+				{...props}
+				wrapperStyle={{
+					right: { backgroundColor: '#007aff' }, // синий
+					left: { backgroundColor: '#333' }, // тёмный
+				}}
+				textStyle={{
+					right: { color: '#fff' },
+					left: { color: '#fff' },
+				}}
+			/>
+		)
 	}
 
-	// --- Остановка конкретного уведомления ---
-	const handleStopRepeating = async repeatedSettingId => {
+	// -------------------------------------------
+	// ============   ОСТАНОВКА НОТИФ.  ==========
+	// -------------------------------------------
+	const handleStopRepeating = async (repeatedSettingId, messageId) => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/notifications/stop`, {
 				method: 'POST',
@@ -296,90 +343,72 @@ const ChatScreen = () => {
 			if (!response.ok) {
 				throw new Error('Failed to stop repeated notification')
 			}
-			// Убираем из стейта, чтобы кнопка исчезла
+
+			// 1) Убираем из списка активных
 			setActiveRepeatedNotifications(prev =>
 				prev.filter(item => item.id !== repeatedSettingId)
 			)
-		} catch (error) {
-			console.error(
-				'Ошибка при остановке повторяющегося уведомления:',
-				error
+
+			// 2) Удаляем из сообщения в чат (чтобы кнопка пропала)
+			setMessages(prev =>
+				prev.map(msg => {
+					if (
+						msg._id === messageId &&
+						msg.custom?.repeatedNotifications
+					) {
+						const filtered =
+							msg.custom.repeatedNotifications.filter(
+								n => n.id !== repeatedSettingId
+							)
+						return {
+							...msg,
+							custom: {
+								...msg.custom,
+								repeatedNotifications: filtered,
+							},
+						}
+					}
+					return msg
+				})
 			)
+		} catch (error) {
+			console.error('Ошибка при остановке уведомления:', error)
 		}
 	}
 
+	// -------------------------------------------
+	// ============   РЕНДЕР   ===================
+	// -------------------------------------------
 	if (!user) {
 		return (
-			<Container>
-				<Text style={{ color: '#fff' }}>
+			<NoUserContainer>
+				<NoUserText>
 					Пользователь не найден. Пожалуйста, войдите в систему.
-				</Text>
-			</Container>
+				</NoUserText>
+			</NoUserContainer>
 		)
 	}
 
 	return (
-		<Container behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-			{/* Блок с активными повторяющимися нотификациями */}
-			<RepeatedNotificationsContainer>
-				{activeRepeatedNotifications.map(notif => (
-					<StopNotifButton
-						key={notif.id}
-						onPress={() => handleStopRepeating(notif.id)}
-					>
-						<StopNotifButtonText>
-							Остановить #{notif.id}
-						</StopNotifButtonText>
-					</StopNotifButton>
-				))}
-			</RepeatedNotificationsContainer>
-
-			<MessagesList
-				ref={flatListRef}
-				data={messages}
-				keyExtractor={item => item.id}
-				renderItem={({ item }) => <MessageBubble message={item} />}
-				inverted
-				maintainVisibleContentPosition={{
-					minIndexForVisible: 1,
-					autoscrollToTopThreshold: 20,
-				}}
-				onEndReachedThreshold={0.1}
-				onEndReached={handleEndReached}
-				onScroll={handleScroll}
-				scrollEventThrottle={16}
-			/>
-
-			{(loading || loadingOlder) && (
-				<ActivityIndicator size="large" color="#0a84ff" />
-			)}
-
-			{/* Кнопка Прокрутить "Вниз" */}
-			{showScrollDownBtn && (
-				<ScrollDownButton
-					onPress={() =>
-						flatListRef.current?.scrollToOffset({
-							offset: 0,
-							animated: true,
-						})
-					}
-				>
-					<ScrollDownButtonText>⬇</ScrollDownButtonText>
-				</ScrollDownButton>
-			)}
-
-			<InputContainer>
-				<Input
-					placeholder="Введите сообщение"
-					placeholderTextColor="#888"
-					value={inputText}
-					onChangeText={setInputText}
-					multiline
+		<Container>
+			{isLoadingInitial ? (
+				<ActivityIndicator
+					size="large"
+					color="#0a84ff"
+					style={{ flex: 1 }}
 				/>
-				<SendButton onPress={handleSend}>
-					<SendButtonText>Отправить</SendButtonText>
-				</SendButton>
-			</InputContainer>
+			) : (
+				<GiftedChat
+					messages={messages}
+					onSend={msgs => onSend(msgs)}
+					// Указываем "мой" айди = 1 => все сообщения {user._id: 1} будут справа
+					user={{ _id: 1, name: 'You' }}
+					loadEarlier={hasMore}
+					onLoadEarlier={onLoadEarlier}
+					isLoadingEarlier={isLoadingEarlier}
+					renderBubble={renderBubble}
+				/>
+			)}
 		</Container>
 	)
 }
@@ -387,80 +416,19 @@ const ChatScreen = () => {
 export default ChatScreen
 
 // ------------------ СТИЛИ ------------------
-
-const Container = styled(KeyboardAvoidingView)`
+const Container = styled.View`
 	flex: 1;
 	background-color: #100f0f;
 `
 
-const RepeatedNotificationsContainer = styled.View`
-	padding: 10px;
-	background-color: #1d1d1d;
-	flex-direction: row;
-	flex-wrap: wrap;
-`
-
-const StopNotifButton = styled.TouchableOpacity`
-	padding: 8px 12px;
-	background-color: #b22222;
-	border-radius: 5px;
-	margin-right: 8px;
-	margin-bottom: 8px;
-`
-
-const StopNotifButtonText = styled.Text`
-	color: #fff;
-	font-weight: 500;
-	font-size: 14px;
-`
-
-const MessagesList = styled(FlatList)`
+const NoUserContainer = styled.View`
 	flex: 1;
-	padding: 10px;
-`
-
-const InputContainer = styled.View`
-	flex-direction: row;
-	padding: 10px;
-	background-color: #0f0e0e;
-	align-items: flex-end;
-`
-
-const Input = styled.TextInput`
-	flex: 1;
-	border: 1px solid #ccc;
-	border-radius: 20px;
-	padding: 10px 15px;
-	margin-right: 10px;
-	color: #fff;
-`
-
-const SendButton = styled.TouchableOpacity`
-	background-color: #007aff;
-	padding: 10px 15px;
-	border-radius: 20px;
-`
-
-const SendButtonText = styled.Text`
-	color: #fff;
-	font-weight: bold;
-`
-
-const ScrollDownButton = styled.TouchableOpacity`
-	position: absolute;
-	right: 35px;
-	bottom: 80px;
-	background-color: #1c1c1c;
-	height: 50px;
-	width: 50px;
-	border-radius: 50px;
-	z-index: 10;
 	align-items: center;
 	justify-content: center;
+	background-color: #100f0f;
 `
 
-const ScrollDownButtonText = styled.Text`
+const NoUserText = styled.Text`
 	color: #fff;
-	font-weight: bold;
-	font-size: 25px;
+	font-size: 16px;
 `

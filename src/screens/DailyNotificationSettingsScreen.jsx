@@ -3,8 +3,9 @@ import styled from 'styled-components/native'
 import { View, Alert, Switch } from 'react-native'
 import { UserContext } from '../context/UserContext'
 import { API_BASE_URL } from '@env'
+import withSafeScreen from '../HOC/withSafeScreen'
 
-export default function DailyNotificationSettingsScreen() {
+const DailyNotificationSettingsScreen = () => {
 	const { user } = useContext(UserContext)
 	const userId = user?.user_id
 
@@ -107,6 +108,8 @@ export default function DailyNotificationSettingsScreen() {
 		</Container>
 	)
 }
+
+export default withSafeScreen(DailyNotificationSettingsScreen)
 
 const Container = styled.View`
 	flex: 1;

@@ -8,6 +8,7 @@ import {
 	updateHabit,
 	deleteHabit,
 } from '../api/habits'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const HabitsScreen = () => {
 	const { user } = useContext(UserContext)
@@ -146,7 +147,7 @@ const HabitsScreen = () => {
 	)
 }
 
-export default HabitsScreen
+export default  withSafeScreen(HabitsScreen)
 
 /* -------- СТИЛИ -------- */
 const Container = styled.View`

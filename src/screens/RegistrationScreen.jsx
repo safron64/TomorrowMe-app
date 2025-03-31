@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API_BASE_URL } from '@env'
 import { useNavigation } from '@react-navigation/native'
 import { UserContext } from '../context/UserContext' // Импортируем контекст
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const RegistrationScreen = () => {
 	const navigation = useNavigation()
@@ -157,7 +158,7 @@ const RegistrationScreen = () => {
 	)
 }
 
-export default RegistrationScreen
+export default withSafeScreen(RegistrationScreen)
 
 // Стили
 const SwitchContainer = styled.View`

@@ -4,6 +4,7 @@ import styled from 'styled-components/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { UserContext } from '../context/UserContext'
 import { API_BASE_URL } from '@env'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const LoginScreen = ({ navigation }) => {
 	const [email, setEmail] = useState('')
@@ -88,7 +89,7 @@ const LoginScreen = ({ navigation }) => {
 	)
 }
 
-export default LoginScreen
+export default  withSafeScreen(LoginScreen)
 
 // Стили
 const Container = styled.View`

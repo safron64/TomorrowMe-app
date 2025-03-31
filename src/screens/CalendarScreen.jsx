@@ -16,8 +16,9 @@ import EventModal from '../components/Calendar/EventModal'
 import NotificationModal from '../components/Calendar/NotificationModal'
 import HabitsDropdown from '../components/Calendar/HabitsDropdown'
 import EventItem from '../components/Calendar/EventItem'
+import withSafeScreen from '../HOC/withSafeScreen'
 
-export default function CalendarScreen() {
+const CalendarScreen = () => {
 	const { user } = useContext(UserContext)
 	const user_id = user ? user.user_id : null
 
@@ -197,6 +198,8 @@ export default function CalendarScreen() {
 		</SafeAreaView>
 	)
 }
+
+export default withSafeScreen(CalendarScreen)
 
 const Header = styled.View`
 	flex-direction: row;

@@ -3,6 +3,7 @@ import { Alert } from 'react-native'
 import styled from 'styled-components/native'
 import { UserContext } from '../context/UserContext'
 import { API_BASE_URL } from '@env'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const EmailVerificationScreen = ({ route, navigation }) => {
 	const [code, setCode] = useState('')
@@ -60,7 +61,7 @@ const EmailVerificationScreen = ({ route, navigation }) => {
 	)
 }
 
-export default EmailVerificationScreen
+export default  withSafeScreen(EmailVerificationScreen)
 
 // Стили
 const Container = styled.View`

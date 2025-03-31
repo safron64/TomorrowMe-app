@@ -6,6 +6,7 @@ import styled from 'styled-components/native'
 import axios from 'axios'
 import { API_BASE_URL } from '@env'
 import { UserContext } from '../context/UserContext'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const StatisticsScreen = () => {
 	const { user } = useContext(UserContext)
@@ -109,7 +110,7 @@ const StatisticsScreen = () => {
 	)
 }
 
-export default StatisticsScreen
+export default  withSafeScreen(StatisticsScreen)
 
 // Стили
 const Container = styled.View`

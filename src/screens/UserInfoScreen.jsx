@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons'
 import axios from 'axios'
 import { API_BASE_URL } from '@env'
 import { UserContext } from '../context/UserContext'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const UserInfoScreen = () => {
 	const { user, saveUser } = useContext(UserContext)
@@ -459,7 +460,7 @@ const UserInfoScreen = () => {
 	)
 }
 
-export default UserInfoScreen
+export default withSafeScreen(UserInfoScreen)
 
 // Стили
 const Container = styled.View`

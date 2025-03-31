@@ -5,6 +5,7 @@ import axios from 'axios'
 import { UserContext } from '../context/UserContext'
 
 import { API_BASE_URL } from '@env'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const GoalsScreen = () => {
 	const { user } = useContext(UserContext)
@@ -235,7 +236,7 @@ const GoalsScreen = () => {
 	)
 }
 
-export default GoalsScreen
+export default withSafeScreen(GoalsScreen)
 
 /* ------ СТИЛИ ------ */
 const Container = styled.View`

@@ -12,6 +12,7 @@ import axios from 'axios'
 import { API_BASE_URL } from '@env'
 import { UserContext } from '../context/UserContext'
 import { useFocusEffect } from '@react-navigation/native'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 const TodoScreen = () => {
 	const [tasks, setTasks] = useState([])
@@ -266,7 +267,7 @@ const TodoScreen = () => {
 	)
 }
 
-export default TodoScreen
+export default withSafeScreen(TodoScreen)
 
 // Стили
 const Container = styled.View`

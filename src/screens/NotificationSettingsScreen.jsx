@@ -10,6 +10,7 @@ import {
 	saveEventOffset, // При сохранении before_due (offset) для schedule
 } from '../services/notifications'
 import { UserContext } from '../context/UserContext'
+import withSafeScreen from '../HOC/withSafeScreen'
 
 function formatISOToTime(isoString) {
 	const m = moment(isoString)
@@ -208,7 +209,7 @@ const NotificationSettingsScreen = () => {
 
 // ... стили не меняются ...
 
-export default NotificationSettingsScreen
+export default  withSafeScreen(NotificationSettingsScreen)
 
 // Стили
 

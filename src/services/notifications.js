@@ -2,6 +2,21 @@ import { Alert } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import { API_BASE_URL } from '@env'
 
+import { Platform } from 'react-native'
+
+export async function createNotificationChannel() {
+	if (Platform.OS === 'android') {
+		await Notifications.setNotificationChannelAsync(
+			'custom-sound-channel',
+			{
+				name: 'Custom Sound Notifications',
+				importance: Notifications.AndroidImportance.HIGH,
+				sound: 'notifi.wav',
+			}
+		)
+	}
+}
+
 export async function loadNotificationSettings(user_id) {
 	const res = await fetch(
 		`${API_BASE_URL}/notifications/settings?user_id=${user_id}`
@@ -59,8 +74,8 @@ export async function saveEventOffset(user_id, offset) {
 Notifications.setNotificationHandler({
 	handleNotification: async () => ({
 		shouldShowAlert: true,
-		shouldPlaySound: false,
-		shouldSetBadge: false,
+		shouldPlaySound: true,
+		shouldSetBadge: true,
 	}),
 })
 
